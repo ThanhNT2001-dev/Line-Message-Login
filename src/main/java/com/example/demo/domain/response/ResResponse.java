@@ -3,7 +3,6 @@ package com.example.demo.domain.response;
 import java.util.Date;
 
 public class ResResponse<T> {
-    // https://stackoverflow.com/questions/24072458/how-can-i-wrap-a-json-response-in-spring/52104852#52104852
     private int statusCode;
     private String message;
     private String error;

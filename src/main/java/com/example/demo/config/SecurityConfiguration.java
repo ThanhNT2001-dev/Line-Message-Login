@@ -52,8 +52,8 @@ public class SecurityConfiguration {
             CustomAccessDeniedHandler customAccessDeniedHandler) throws Exception {
         // v6 . lamda
         String[] whiteList = { 
-                //apiPrefix + "/auth/login",
-                //apiPrefix + "/auth/refresh",
+                apiPrefix + "/auth/login",
+                apiPrefix + "/auth/refresh",
                 apiPrefix + "/**",
                 "/v3/api-docs/**",
                 "/swagger-ui/**",

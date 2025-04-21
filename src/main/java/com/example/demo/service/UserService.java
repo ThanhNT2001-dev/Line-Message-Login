@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.domain.Order;
@@ -23,14 +24,30 @@ public class UserService {
     // Dependency Inject: Constructor
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, OrderRepository orderRepository) {
+    public UserService(UserRepository userRepository, OrderRepository orderRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.orderRepository = orderRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public User handleCreateUser(User createUser) {
+        String hashPassword = this.passwordEncoder.encode(createUser.getPassword());
+        createUser.setPassword(hashPassword);
         return this.userRepository.save(createUser);
+    }
+
+    public User handleGetUserByUsername(String email) {
+        return this.userRepository.findByEmail(email);
+    }
+
+    public void updateUserToken(String refreshToken, String email) {
+        User currentUser = this.handleGetUserByUsername(email);
+        if(currentUser != null) {
+            currentUser.setRefreshToken(refreshToken);
+            this.userRepository.save(currentUser);
+        }
     }
 
     public ResUserDTO convertToResUserDTO(User user) {

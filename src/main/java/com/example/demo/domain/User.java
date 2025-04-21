@@ -8,6 +8,7 @@ import com.example.demo.util.validation.EnumPattern;
 import com.example.demo.util.validation.phone.PhoneNumber;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -46,6 +47,9 @@ public class User {
 
     @Email(message = "Email invalid format")
     private String email;
+
+    @Column(columnDefinition = "MEDIUMTEXT")
+    private String refreshToken;
 
     private String address;
 
