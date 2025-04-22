@@ -83,6 +83,7 @@ public class UserService {
             currentUser.setPhone(requestUser.getPhone());
             currentUser.setGender(requestUser.getGender());
             currentUser.setAddress(requestUser.getAddress());
+            currentUser.setAvatar(requestUser.getAvatar());
 
             // update user in database
             currentUser = this.userRepository.save(currentUser);

@@ -28,7 +28,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 @EnableMethodSecurity(securedEnabled = true)
 public class SecurityConfiguration {
 
-    private static final String apiPrefix = "/api/v1";
+    private static final String API_PREFIX = "/api/v1";
 
     @Value("${tomosia.jwt.secret-key}")
     private String jwtKey;
@@ -53,8 +53,7 @@ public class SecurityConfiguration {
         // v6 . lamda
         String[] whiteList = { 
                 "/api/v1/login/line/**",  // Callback URL LINE Developers and application.properties
-                apiPrefix + "/auth/**",
-                apiPrefix + "/**",
+                API_PREFIX + "/auth/login",
                 "/v3/api-docs/**",
                 "/swagger-ui/**",
                 "/swagger-ui.html" };
@@ -63,7 +62,8 @@ public class SecurityConfiguration {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(whiteList).permitAll())
+                        .requestMatchers(whiteList).permitAll()
+                        .requestMatchers(API_PREFIX + "/**").authenticated())
 
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(customAuthenticationEntryPoint))

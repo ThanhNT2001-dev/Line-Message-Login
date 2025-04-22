@@ -48,6 +48,8 @@ public class User {
     @Email(message = "Email invalid format")
     private String email;
 
+    private String lineId;
+
     @Column(columnDefinition = "MEDIUMTEXT")
     private String refreshToken;
 

@@ -19,7 +19,7 @@ import com.example.demo.service.UserService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/auth")
 public class AuthController {
     private static final String REFRESH_TOKEN = "refresh_token";
 

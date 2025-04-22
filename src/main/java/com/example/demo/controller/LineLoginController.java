@@ -24,6 +24,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import com.example.demo.domain.User;
+import com.example.demo.repository.UserRepository;
 import com.example.demo.service.SecurityService;
 import com.example.demo.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -49,12 +50,14 @@ public class LineLoginController {
     private final UserService userService;
     private final ObjectMapper objectMapper;
     private final SecurityService securityService;
+    private final UserRepository userRepository;
     private final WebClient webClient = WebClient.create();
 
-    public LineLoginController(UserService userService, ObjectMapper objectMapper, SecurityService securityService) {
+    public LineLoginController(UserService userService, ObjectMapper objectMapper, SecurityService securityService, UserRepository userRepository) {
         this.userService = userService;
         this.objectMapper = objectMapper;
         this.securityService = securityService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -116,12 +119,12 @@ public class LineLoginController {
                 .block();
 
         JsonNode profileJson = objectMapper.readTree(profileStr);
-        String userId = profileJson.get("userId").asText();
-        String displayName = profileJson.get("displayName").asText();
-        String pictureUrl = profileJson.get("pictureUrl").asText();
+        String userId = profileJson.has("userId") ? profileJson.get("userId").asText() : "unknown";
+        String displayName = profileJson.has("displayName") ? profileJson.get("displayName").asText() : "Unknown";
+        String pictureUrl = profileJson.has("pictureUrl") ? profileJson.get("pictureUrl").asText() : "";
 
         // 4. Create or retrieve user from DB
-        User user = userService.handleGetUserByUsername(email);
+        User user = this.userService.handleGetUserByUsername(email);
         if (user == null) {
             User newUser = new User();
             newUser.setName(displayName);
@@ -130,18 +133,27 @@ public class LineLoginController {
             newUser.setPassword("");
             newUser.setCreateAt(Instant.now());
             newUser.setPhone(""); // avoid validation issue
-            user = userService.handleCreateUser(newUser);
+            newUser.setLineId(userId);
+
+            user = this.userService.handleCreateUser(newUser);
+        } else {
+            String existingAvatar = user.getAvatar();
+            if (pictureUrl != null && !pictureUrl.isEmpty() && !pictureUrl.equals(existingAvatar)) {
+                user.setAvatar(pictureUrl);
+                user.setUpdatedAt(Instant.now());
+                this.userRepository.save(user);   // Update DB
+            }
         }
 
         // 5. Generate JWT tokens
-        String accessJwt = securityService.createAccessToken(user.getEmail(), user);
-        String refreshJwt = securityService.createRefreshToken(user.getEmail(), user);
-        userService.updateUserToken(refreshJwt, user.getEmail());
+        String accessJwt = this.securityService.createAccessToken(user.getEmail(), user);
+        String refreshJwt = this.securityService.createRefreshToken(user.getEmail(), user);
+        this.userService.updateUserToken(refreshJwt, user.getEmail());
 
         // 6. Create refresh_token cookie
         ResponseCookie cookie = ResponseCookie.from("refresh_token", refreshJwt)
                 .httpOnly(true)
-                .secure(false) // set true if deploy over HTTPS
+                .secure(true)
                 .path("/")
                 .maxAge(refreshTokenExpiration)
                 .build();
@@ -149,12 +161,12 @@ public class LineLoginController {
         // 7. Return response
         Map<String, Object> responseData = new HashMap<>();
         responseData.put("access_token", accessJwt);
-        responseData.put("refresh_token", refreshJwt);
         responseData.put("user", Map.of(
                 "id", user.getId(),
                 "name", user.getName(),
                 "email", user.getEmail(),
-                "avatar", user.getAvatar()));
+                "avatar", user.getAvatar(),
+                "lineId", user.getLineId()));
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
