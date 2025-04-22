@@ -10,9 +10,11 @@ public class PhoneValidator implements ConstraintValidator<PhoneNumber, String> 
 
     @Override
     public boolean isValid(String phoneNumber, ConstraintValidatorContext context) {
-        if (phoneNumber == null || phoneNumber.isBlank()) {
-            return false;
-        }
+        // if (phoneNumber == null || phoneNumber.isBlank()) {
+        //     return false;
+        // }
+
+        if (phoneNumber == null || phoneNumber.isEmpty()) return true;
 
         // validate phone numbers of format "0902345345"
         if (phoneNumber.matches("\\d{10}"))

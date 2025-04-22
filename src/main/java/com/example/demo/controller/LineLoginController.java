@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -27,7 +30,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.HttpServletResponse;
-import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/v1/login/line")
@@ -69,7 +71,8 @@ public class LineLoginController {
     }
 
     @GetMapping("/callback")
-    public Mono<ResponseEntity<String>> handleCallback(@RequestParam("code") String code) {
+    public ResponseEntity<Map<String, Object>> handleCallback(@RequestParam("code") String code) throws IOException {
+        // 1. Exchange code for access_token & id_token
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add("grant_type", "authorization_code");
         formData.add("code", code);
@@ -77,74 +80,85 @@ public class LineLoginController {
         formData.add("client_id", clientId);
         formData.add("client_secret", clientSecret);
 
-        return webClient.post()
+        String tokenResponseStr = webClient.post()
                 .uri("https://api.line.me/oauth2/v2.1/token")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(BodyInserters.fromFormData(formData))
                 .retrieve()
                 .bodyToMono(String.class)
-                .flatMap(tokenResponseStr -> {
-                    try {
-                        JsonNode tokenResponse = objectMapper.readTree(tokenResponseStr);
-                        String accessToken = tokenResponse.get("access_token").asText();
+                .block();
 
-                        return webClient.get()
-                                .uri("https://api.line.me/v2/profile")
-                                .headers(headers -> headers.setBearerAuth(accessToken))
-                                .retrieve()
-                                .bodyToMono(String.class)
-                                .flatMap(profileStr -> {
-                                    try {
-                                        JsonNode profileJson = objectMapper.readTree(profileStr);
-                                        String userId = profileJson.get("userId").asText();
-                                        String displayName = profileJson.get("displayName").asText();
-                                        String pictureUrl = profileJson.get("pictureUrl").asText();
+        JsonNode tokenResponse = objectMapper.readTree(tokenResponseStr);
+        String accessToken = tokenResponse.get("access_token").asText();
+        String idToken = tokenResponse.get("id_token").asText();
 
-                                        System.out.println("LINE userId: " + userId);
+        // 2. Decode id_token to extract email (if permission granted)
+        String email = null;
+        String[] parts = idToken.split("\\.");
+        if (parts.length == 3) {
+            String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+            JsonNode payloadJson = objectMapper.readTree(payload);
+            JsonNode emailNode = payloadJson.get("email");
+            if (emailNode != null) {
+                email = emailNode.asText();
+            }
+        }
+        if (email == null || email.isEmpty()) {
+            email = UUID.randomUUID().toString() + "@line.com"; // fallback if no email
+        }
 
-                                        // Tạo user giả định
-                                        String email = userId + "@line.com";
-                                        User user = this.userService.handleGetUserByUsername(email);
-                                        if (user == null) {
-                                            User newUser = new User();
-                                            newUser.setName(displayName);
-                                            newUser.setEmail(email);
-                                            newUser.setAvatar(pictureUrl);
-                                            newUser.setPassword("123456");
-                                            newUser.setCreateAt(Instant.now());
+        // 3. Get user profile info from LINE
+        String profileStr = webClient.get()
+                .uri("https://api.line.me/v2/profile")
+                .headers(headers -> headers.setBearerAuth(accessToken))
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
 
-                                            user = userService.handleCreateUser(newUser);
+        JsonNode profileJson = objectMapper.readTree(profileStr);
+        String userId = profileJson.get("userId").asText();
+        String displayName = profileJson.get("displayName").asText();
+        String pictureUrl = profileJson.get("pictureUrl").asText();
 
-                                            System.out.println("Created new user with email = " + user.getEmail());
-                                        }
+        // 4. Create or retrieve user from DB
+        User user = userService.handleGetUserByUsername(email);
+        if (user == null) {
+            User newUser = new User();
+            newUser.setName(displayName);
+            newUser.setEmail(email);
+            newUser.setAvatar(pictureUrl);
+            newUser.setPassword("");
+            newUser.setCreateAt(Instant.now());
+            newUser.setPhone(""); // avoid validation issue
+            user = userService.handleCreateUser(newUser);
+        }
 
-                                        // Tạo JWT token
-                                        String accessJwt = securityService.createAccessToken(user.getEmail(), user);
-                                        String refreshJwt = securityService.createRefreshToken(user.getEmail(), user);
+        // 5. Generate JWT tokens
+        String accessJwt = securityService.createAccessToken(user.getEmail(), user);
+        String refreshJwt = securityService.createRefreshToken(user.getEmail(), user);
+        userService.updateUserToken(refreshJwt, user.getEmail());
 
-                                        // Lưu refresh_token
-                                        userService.updateUserToken(refreshJwt, user.getEmail());
+        // 6. Create refresh_token cookie
+        ResponseCookie cookie = ResponseCookie.from("refresh_token", refreshJwt)
+                .httpOnly(true)
+                .secure(false) // set true if deploy over HTTPS
+                .path("/")
+                .maxAge(refreshTokenExpiration)
+                .build();
 
-                                        // Gửi refresh_token qua cookie
-                                        ResponseCookie cookie = ResponseCookie.from("refresh_token", refreshJwt)
-                                                .httpOnly(true)
-                                                .secure(true)
-                                                .path("/")
-                                                .maxAge(refreshTokenExpiration)
-                                                .build();
+        // 7. Return response
+        Map<String, Object> responseData = new HashMap<>();
+        responseData.put("access_token", accessJwt);
+        responseData.put("refresh_token", refreshJwt);
+        responseData.put("user", Map.of(
+                "id", user.getId(),
+                "name", user.getName(),
+                "email", user.getEmail(),
+                "avatar", user.getAvatar()));
 
-                                        return Mono.just(ResponseEntity.status(302)
-                                                .header(HttpHeaders.LOCATION,
-                                                        "http://localhost:5173/user-detail?token=" + accessJwt)
-                                                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                                                .build());
-                                    } catch (Exception e) {
-                                        return Mono.error(new RuntimeException("Error parsing LINE profile", e));
-                                    }
-                                });
-                    } catch (Exception e) {
-                        return Mono.error(new RuntimeException("Error parsing LINE token response", e));
-                    }
-                });
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(responseData);
     }
+
 }
