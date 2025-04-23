@@ -52,7 +52,8 @@ public class SecurityConfiguration {
             CustomAccessDeniedHandler customAccessDeniedHandler) throws Exception {
         // v6 . lamda
         String[] whiteList = { 
-                "/api/v1/login/line/**",  // Callback URL LINE Developers and application.properties
+                API_PREFIX + "/line-message/**",  // Allow webhook LINE Messaging API
+                API_PREFIX + "/login/line/**",  // Callback URL LINE Developers and application.properties
                 API_PREFIX + "/auth/login",
                 "/v3/api-docs/**",
                 "/swagger-ui/**",

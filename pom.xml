@@ -128,20 +128,14 @@
 
 		<dependency>
 			<groupId>com.linecorp.bot</groupId>
-			<artifactId>line-bot-servlet</artifactId>
-			<version>3.5.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.linecorp.bot</groupId>
 			<artifactId>line-bot-model</artifactId>
-			<version>5.0.0</version>
+			<version>6.0.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.linecorp.bot</groupId>
 			<artifactId>line-bot-spring-boot</artifactId>
-			<version>3.5.0</version>
+			<version>6.0.0</version>
 		</dependency>
 
 		<!-- Security - Oauth2 Resource Server -->
