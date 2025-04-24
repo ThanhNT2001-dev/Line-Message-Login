@@ -1,6 +1,5 @@
 package com.example.demo.controller;
 
-import java.net.URI;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -11,7 +10,7 @@ import com.example.demo.domain.User;
 import com.example.demo.service.UserService;
 import com.linecorp.bot.messaging.client.MessagingApiClient;
 import com.linecorp.bot.messaging.model.*;
-
+import com.linecorp.bot.model.PushMessage;
 import com.linecorp.bot.webhook.model.MessageEvent;
 import com.linecorp.bot.webhook.model.TextMessageContent;
 
@@ -49,6 +48,12 @@ public class LineMessagingController {
                     break;
                 case "users with id = 12":
                     handleGetUserById(event, 12);
+                    break;
+                case "sticker":
+                    handleStickerResponse(event, "8515", "16581242");
+                    break;
+                case "happy":
+                    handleStickerResponse(event, "1070", "17841");
                     break;
                 default:
                     String originalMessageText = "Bạn đã gửi: " + userMessage;
@@ -133,5 +138,35 @@ public class LineMessagingController {
                     false));
         }
     }
+
+    public void handleStickerResponse(MessageEvent event, String packageId, String stickerId) {
+        try {
+            // Gửi sticker mặc định dễ thương
+            StickerMessage stickerMessage = new StickerMessage(
+                    packageId, // packageId: sticker collection (ví dụ: Brown & Cony)
+                    stickerId // stickerId: ID của sticker cụ thể
+            );
+
+            messagingApiClient.replyMessage(new ReplyMessageRequest(
+                    event.replyToken(),
+                    List.of(stickerMessage),
+                    false));
+
+            log.info("Đã gửi sticker đến người dùng: {}", event.source().userId());
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi sticker: ", e);
+            messagingApiClient.replyMessage(new ReplyMessageRequest(
+                    event.replyToken(),
+                    List.of(new TextMessage("Không thể gửi sticker lúc này. Hãy thử lại sau nhé!")),
+                    false));
+        }
+    }
+
+    // Luồng hoạt động:
+    // Người dùng quét QR Code sau đó gửi tin nhắn qua ứng dụng LINE
+    // LINE chuyển tiếp tin nhắn đó tới Webhook URL đã đăng ký của Bot
+    // Webhook URL thông qua ngrok gửi request đến server của Spring Boot
+    // Server xử lý và gửi phản hồi lại LINE Message API
+    // LINE gửi tin nhắn phản hồi tới người dùng
 
 }
