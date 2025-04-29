@@ -1,25 +1,38 @@
 package com.example.demo.controller.LineMessage;
 
-import java.util.List;
+import java.util.Collections;
+import java.util.concurrent.ExecutionException;
 
-import com.linecorp.bot.messaging.client.MessagingApiClient;
-import com.linecorp.bot.messaging.model.*;
-import com.linecorp.bot.messaging.model.ReplyMessageRequest;
-import com.linecorp.bot.webhook.model.MessageEvent;
+import com.linecorp.bot.client.LineMessagingClient;
+import com.linecorp.bot.model.ReplyMessage;
+import com.linecorp.bot.model.event.MessageEvent;
+import com.linecorp.bot.model.event.message.TextMessageContent;
+import com.linecorp.bot.model.message.StickerMessage;
 
-public class StickerHandler implements CommandHandler{
+public class StickerHandler implements CommandHandler<TextMessageContent>{
 
-    private final MessagingApiClient messagingApiClient;
+    private final LineMessagingClient lineMessagingClient;
 
-    public StickerHandler (MessagingApiClient messagingApiClient) {
-        this.messagingApiClient = messagingApiClient;
+    public StickerHandler (LineMessagingClient lineMessagingClient) {
+        this.lineMessagingClient = lineMessagingClient;
     }
 
     @Override
-    public void handle(MessageEvent event) {
+    public void handle(MessageEvent<TextMessageContent> event) {
+        String replyToken = event.getReplyToken();
+
         StickerMessage sticker = new StickerMessage("8515", "16581242");
-        messagingApiClient.replyMessage(new ReplyMessageRequest(
-                event.replyToken(), List.of(sticker), false));
+
+        ReplyMessage replyRequest = new ReplyMessage(
+                replyToken,
+                Collections.singletonList(sticker)
+        );
+
+        try {
+            lineMessagingClient.replyMessage(replyRequest).get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
     }
     
 }

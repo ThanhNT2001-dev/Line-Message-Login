@@ -1,31 +1,20 @@
 package com.example.demo.controller;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.example.demo.controller.LineMessage.*;
+import com.linecorp.bot.client.LineMessagingClient;
+import com.linecorp.bot.spring.boot.annotation.EventMapping;
+import com.linecorp.bot.spring.boot.annotation.LineMessageHandler;
 import org.springframework.web.bind.annotation.*;
 
-import com.example.demo.controller.LineMessage.CommandHandler;
-import com.example.demo.controller.LineMessage.DefaultHandler;
-import com.example.demo.controller.LineMessage.GetUserByIdHandler;
-import com.example.demo.controller.LineMessage.HappyHandler;
-import com.example.demo.controller.LineMessage.ListUsersHandler;
-import com.example.demo.controller.LineMessage.StickerHandler;
-import com.example.demo.domain.User;
 import com.example.demo.service.UserService;
-import com.linecorp.bot.messaging.client.MessagingApiClient;
-import com.linecorp.bot.messaging.model.*;
-import com.linecorp.bot.model.PushMessage;
-import com.linecorp.bot.webhook.model.MessageEvent;
-import com.linecorp.bot.webhook.model.TextMessageContent;
+import com.linecorp.bot.model.event.MessageEvent;
+import com.linecorp.bot.model.event.message.MessageContent;
+import com.linecorp.bot.model.event.message.TextMessageContent;
 
 import lombok.extern.slf4j.Slf4j;
-
-import com.linecorp.bot.spring.boot.handler.annotation.EventMapping;
-import com.linecorp.bot.spring.boot.handler.annotation.LineMessageHandler;
 
 @LineMessageHandler
 @RestController
@@ -33,44 +22,44 @@ import com.linecorp.bot.spring.boot.handler.annotation.LineMessageHandler;
 @Slf4j
 public class LineMessagingController {
 
-    private final MessagingApiClient messagingApiClient;
+    private final LineMessagingClient lineMessagingClient;
     private final UserService userService;
-    private final Map<String, CommandHandler> commandHandlers;
-    private final CommandHandler defaultHandler;
-    public LineMessagingController(MessagingApiClient messagingApiClient, UserService userService) {
-        this.messagingApiClient = messagingApiClient;
+    private final Map<String, CommandHandler<TextMessageContent>> commandHandlers;
+    private final CommandHandler<TextMessageContent> defaultHandler;
+
+    public LineMessagingController(LineMessagingClient lineMessagingClient, UserService userService) {
+        this.lineMessagingClient = lineMessagingClient;
         this.userService = userService;
 
-        this.defaultHandler = new DefaultHandler(messagingApiClient);
+        this.defaultHandler = new DefaultHandler(lineMessagingClient);
 
         this.commandHandlers = initializeCommandHandlers();
     }
 
-    // @LineMessageHandler: tự động quét các handler có @EventMapping để xử lý sự kiện từ LINE webhook.
+    // @LineMessageHandler: tự động quét các handler có @EventMapping để xử lý sự
+    // kiện từ LINE webhook.
     @EventMapping
-    public void handleTextMessageEvent(MessageEvent event) {
-        if (event.message() instanceof TextMessageContent messageContent) {
-            String userMessage = messageContent.text().trim().toLowerCase();
-            log.info("Received message: {}", userMessage);
+    public void handleTextMessageEvent(MessageEvent<TextMessageContent> event) {
+        TextMessageContent messageContent = event.getMessage();
+        String userMessage = messageContent.getText().trim().toLowerCase();
+        log.info("Received message: {}", userMessage);
 
-            // Nếu userMessage bắt đầu bằng "user id" thì dùng GetUserByIdHandler
+        // Nếu userMessage bắt đầu bằng "user id" thì dùng GetUserByIdHandler
         if (userMessage.startsWith("user id")) {
-            new GetUserByIdHandler(messagingApiClient, userService).handle(event);
+            new GetUserByIdHandler(lineMessagingClient, userService).handle(event);
             return;
         }
 
-            CommandHandler handler = commandHandlers.getOrDefault(userMessage, defaultHandler);
-            handler.handle(event);
-        }
+        CommandHandler<TextMessageContent> handler = commandHandlers.getOrDefault(userMessage, defaultHandler);
+        handler.handle(event);
     }
 
-    private Map<String, CommandHandler> initializeCommandHandlers() {
-        Map<String, CommandHandler> handlers = new HashMap<>();
-    
-        handlers.put("list users", new ListUsersHandler(messagingApiClient, userService));
-        handlers.put("sticker", new StickerHandler(messagingApiClient));
-        handlers.put("happy", new HappyHandler(messagingApiClient));
-    
+    private Map<String, CommandHandler<TextMessageContent>> initializeCommandHandlers() {
+        Map<String, CommandHandler<TextMessageContent>> handlers = new HashMap<>();
+
+        handlers.put("sticker", new StickerHandler(lineMessagingClient));
+        handlers.put("happy", new HappyHandler(lineMessagingClient));
+
         return handlers;
     }
 

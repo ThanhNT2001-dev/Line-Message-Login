@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.2.2</version>
+		<version>3.4.4</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.example</groupId>
@@ -96,7 +96,7 @@
 		</dependency>
 
 		<!-- Line Message -->
-		<dependency>
+		<!-- <dependency>
 			<groupId>com.linecorp.bot</groupId>
 			<artifactId>line-bot-parser</artifactId>
 			<version>8.6.0</version>
@@ -106,7 +106,7 @@
 			<groupId>com.linecorp.bot</groupId>
 			<artifactId>line-bot-spring-boot-handler</artifactId>
 			<version>8.6.0</version>
-		</dependency>
+		</dependency> -->
 
 		<dependency>
 			<groupId>com.linecorp.bot</groupId>
@@ -117,25 +117,25 @@
 		<dependency>
 			<groupId>com.linecorp.bot</groupId>
 			<artifactId>line-bot-webhook</artifactId>
-			<version>8.6.0</version>
+			<version>9.6.1</version>
 		</dependency>
 
-		<dependency>
+		<!-- <dependency>
 			<groupId>com.linecorp.bot</groupId>
 			<artifactId>line-bot-messaging-api-client</artifactId>
 			<version>8.6.0</version>
-		</dependency>
+		</dependency> -->
 
-		<dependency>
+		<!-- <dependency>
 			<groupId>com.linecorp.bot</groupId>
 			<artifactId>line-bot-model</artifactId>
 			<version>6.0.0</version>
-		</dependency>
+		</dependency> -->
 
 		<dependency>
 			<groupId>com.linecorp.bot</groupId>
 			<artifactId>line-bot-spring-boot</artifactId>
-			<version>5.0.0</version>
+			<version>6.0.0</version>
 		</dependency>
 
 		<!-- Security - Oauth2 Resource Server -->
